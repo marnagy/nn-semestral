@@ -1,0 +1,3 @@
+pandas
+requests
+python>=3.9.7
