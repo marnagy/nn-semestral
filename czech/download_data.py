@@ -88,6 +88,9 @@ def download_vaccine_data(base_url: str, query_params_base: dict[str, any], head
 
     df = pd.DataFrame(data=df_dict)
 
+    df['first_vaccine_cumulative'] = df['first_vaccine'].cumsum()
+    df['second_vaccine_cumulative'] = df['second_vaccine'].cumsum()
+
     df.to_csv('vaccines.csv', index=False)
 
 def download_hospitalization(base_url: str, query_params_base: dict[str, any], headers: dict[str, str], sleep_const: float):

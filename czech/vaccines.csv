@@ -1,4 +1,4 @@
-date,first_vaccine,second_vaccine,first_vaccine_cumulative,second_vaccine_cumulative
+datum,first_vaccine,second_vaccine,first_vaccine_cumulative,second_vaccine_cumulative
 2020-12-27,1278,0,1278,0
 2020-12-28,2307,0,3585,0
 2020-12-29,3467,0,7052,0
