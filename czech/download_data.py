@@ -98,18 +98,18 @@ def main():
     query_params_base = {
         'apiToken': load_key()
     }
-    requests_per_minute = 5
+    requests_per_minute = 10
     sleep_const = 60 / requests_per_minute
     start_dt = datetime.now()
 
-    download_most_data(base_url, query_params_base, headers, sleep_const)
+    #download_most_data(base_url, query_params_base, headers, sleep_const)
     download_vaccine_data(base_url, query_params_base, headers, sleep_const)
 
     end_dt = datetime.now()
 
-    print()
-    print(f'Started at {start_dt}')
-    print(f'Ended at {end_dt}')
+    with open('download_info.txt', 'w') as download_info_file:
+        print(f'Started at {start_dt}', file=download_info_file)
+        print(f'Ended at {end_dt}', file=download_info_file)
 
 if __name__ == '__main__':
     main()
