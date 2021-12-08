@@ -8,6 +8,7 @@ from datetime import datetime
 
 # download needed
 import pandas as pd
+import numpy as np
 import requests
 
 def load_key() -> str:
@@ -79,7 +80,7 @@ def download_vaccine_data(base_url: str, query_params_base: dict[str, any], head
         first_doses = master_dict[date]['first']
         second_doses = master_dict[date]['second']
 
-        df_dict['date'].append(date)
+        df_dict['datum'].append(date)
         df_dict['first_vaccine'].append(first_doses)
         df_dict['second_vaccine'].append(second_doses)
     
@@ -88,6 +89,42 @@ def download_vaccine_data(base_url: str, query_params_base: dict[str, any], head
     df = pd.DataFrame(data=df_dict)
 
     df.to_csv('vaccines.csv', index=False)
+
+def download_hospitalization(base_url: str, query_params_base: dict[str, any], headers: dict[str, str], sleep_const: float):
+    url = base_url + 'hospitalizace'
+    master_dict = defaultdict(lambda: list())
+
+    page_num = 1
+    while True:
+        query_params = query_params_base | {'page': page_num}
+        resp = requests.get(url, params=query_params, headers=headers)
+        if resp.status_code == 200:
+            resp_json: list[dict[str, any]] = resp.json()
+            if len(resp_json) == 0:
+                break
+
+            for item in resp_json:
+                for key in item:
+                    master_dict[key].append(item[key])
+            
+            print(f'Loaded page {page_num} of hospitalization')
+        else:
+            break
+        
+        # sleep to avoid surpassing limit 1000 calls/hour
+        #sleep(sleep_const)
+        page_num += 1
+
+    df = pd.DataFrame(data=master_dict)
+
+    for col in df.columns:
+        if col in ['id', 'datum']:
+            continue
+
+        df[col].fillna(0, inplace=True)
+        df[col] = df[col].astype(np.int32)
+
+    df.to_csv('hospitalization.csv', index=False)
 
 def main():
     base_url = 'https://onemocneni-aktualne.mzcr.cz/api/v3/'
@@ -98,12 +135,13 @@ def main():
     query_params_base = {
         'apiToken': load_key()
     }
-    requests_per_minute = 10
+    requests_per_minute = 16
     sleep_const = 60 / requests_per_minute
     start_dt = datetime.now()
 
-    #download_most_data(base_url, query_params_base, headers, sleep_const)
+    download_most_data(base_url, query_params_base, headers, sleep_const)
     download_vaccine_data(base_url, query_params_base, headers, sleep_const)
+    download_hospitalization(base_url, query_params_base, headers, sleep_const)
 
     end_dt = datetime.now()
 

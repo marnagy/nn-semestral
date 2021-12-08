@@ -2,7 +2,7 @@
 /.ipynb_checkpoints
 
 /czech/czech_api_token.txt
-# /czech/data-czech
+/czech/.ipynb_checkpoints
 # /czech/*.csv
 
 # /slovak/data-slovakia
