@@ -1,5 +1,6 @@
 /covid19-data
 /.ipynb_checkpoints
+/venv
 
 /czech/czech_api_token.txt
 # /czech/data-czech
