@@ -1,133 +1,95 @@
-from argparse import ArgumentParser, Namespace
-from os import spawnle
-from sys import stderr
-
-import pandas as pd
 import numpy as np
-from sklearn.externals._packaging.version import parse
+from numpy.core.fromnumeric import shape
+import pandas as pd
+from argparse import Namespace, ArgumentParser
 
 def get_args() -> Namespace:
     parser = ArgumentParser()
 
-    parser.add_argument('-f', '--file', type=str, required=True, help='Path to CSV file.')
-    #arser.add_argument('--datum-encode', default=False, nargs='?', const=True, help='Include date in input.')
-    #parser.add_argument('--datum-onehot', default=False, nargs='?', const=True, help='Encode date in onehot encoding.')
-    parser.add_argument('--before', type=int, default=5, help="How many days in past should script consider")
-    parser.add_argument('--future', type=int, default=3, help="How many days in the future should script predict")
-    parser.add_argument('-v', '--verbose', type=bool, default=False, nargs='?', const=True)
+    parser.add_argument('-f', '--file', required=True)
+    parser.add_argument('--before', type=int, default=10)
+    parser.add_argument('--future', type=int, default=2)
+    parser.add_argument('-n', '--normalize', type=bool, default=False, nargs='?', const=True)
 
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    if not args.file.endswith('.csv'):
-        print(f'File {args.file} does not have correct format (csv)')
-        exit(1)
-    
-    return args
+def normalize(series: pd.Series, start: int = 0, end: int = 1) -> pd.Series:
+    series.dtypes
+    size = series.max() - series.min()
+    return ( series - series.min() ) / size
 
 def main():
     args = get_args()
+    df = pd.read_csv('combined.csv')
 
-    df = pd.read_csv(args.file) #, index_col='datum')
-    df['datum'] = df['datum'].astype(np.datetime64)
+    # remove last row (incomplete data)
+    df = df.drop(len(df['datum']) - 1)
 
-    chosen_columns = [
-        'datum',
+    # add column 'currently_sick'
+    df['currently_sick'] = df['kumulativni_pocet_nakazenych'] - (df['kumulativni_pocet_vylecenych'] + df['kumulativni_pocet_umrti'])
+
+    input_columns = [
         'prirustkovy_pocet_nakazenych',
         'kumulativni_pocet_nakazenych',
         'prirustkovy_pocet_vylecenych',
         'kumulativni_pocet_vylecenych',
         'prirustkovy_pocet_umrti',
         'kumulativni_pocet_umrti',
-        #'prirustkovy_pocet_provedenych_testu',
-        #'kumulativni_pocet_testu',
-        #'prirustkovy_pocet_provedenych_ag_testu',
-        #'kumulativni_pocet_ag_testu',
         'first_vaccine_cumulative',
         'second_vaccine_cumulative',
-        #'stav_bez_priznaku',
-        #'stav_lehky',
-        #'stav_stredni',
-        #'stav_tezky'
-    ]
-    input_columns = [
-        'prirustkovy_pocet_nakazenych',
-        #'kumulativni_pocet_nakazenych',
-        'prirustkovy_pocet_vylecenych',
-        #'kumulativni_pocet_vylecenych',
-        'prirustkovy_pocet_umrti',
-        #'kumulativni_pocet_umrti',
-        'first_vaccine_cumulative',
-        'second_vaccine_cumulative',
-        'aktualne_nakazenych'
+        'currently_sick'
     ]
     output_columns = [
+        'currently_sick',
         'prirustkovy_pocet_nakazenych',
-        #'kumulativni_pocet_nakazenych',
-        #'prirustkovy_pocet_vylecenych',
-        #'kumulativni_pocet_vylecenych',
-        'prirustkovy_pocet_umrti',
-        #'kumulativni_pocet_umrti',
+        'prirustkovy_pocet_vylecenych',
+        'prirustkovy_pocet_umrti'
     ]
-
-    df = df[chosen_columns]
-    df['aktualne_nakazenych'] = df['kumulativni_pocet_nakazenych'] - (df['kumulativni_pocet_vylecenych'] + df['kumulativni_pocet_umrti'])
-    df['aktualne_nakazenych'] = df['aktualne_nakazenych'].astype(np.int32)
-
-    # remove last row
-    df = df.drop(len(df) - 1)
-
-    # remove 'datum' column
-    df = df.drop('datum', axis='columns')
-
     inputs_df = df[input_columns]
     outputs_df = df[output_columns]
 
-    # if args.verbose:
-    #     df.info()
+    if args.normalize:
+        print('Normalizing')
+        for curr_df in [inputs_df, outputs_df]:
+            # print(curr_df.columns)
+            # columns_to_scale = list(filter(lambda type: np.isscalar, curr_df.columns))
+            # print(columns_to_scale)
+            for col in curr_df.columns:
+                #print(col)
+                curr_df[col] = curr_df[col].astype(np.float64)
+                curr_df[col] = normalize(curr_df[col])
 
-    inputs_width_for_day = len(inputs_df.columns)
-    outputs_width_for_day = len(outputs_df.columns)
-    #patterns = np.empty(shape=(0, args.before * inputs_width_for_day + args.future * outputs_width_for_day))
-    x = np.empty(shape=(0, args.before * inputs_width_for_day))
-    y = np.empty(shape=(0, args.future * outputs_width_for_day))
+    inputs = np.empty(shape=(0, len(input_columns) * args.before))
+    outputs = np.empty(shape=(0, len(output_columns) * args.future))
+    for index in range(args.before - 1, len(df) - args.future):
+        in_arr = np.empty(shape=(0))
+        out_arr = np.empty(shape=(0))
 
-    indices = list(df.index)
-    split_index = args.before * inputs_width_for_day
-    for index in range(args.before - 1, len(indices) - args.future - 1):
-        arr = np.empty(shape=(0,))
-        for i in range(index - args.before + 1, index + args.future + 1):
-            if i <= index:
-                arr = np.hstack((arr, inputs_df.iloc[i].to_numpy()))
-            else:
-                arr = np.hstack((arr, outputs_df.loc[i].to_numpy()))
-            #print(arr.shape)
-        #patterns = np.vstack((patterns, arr))
-        x = np.vstack((x, arr[:split_index]))
-        y = np.vstack((y, arr[split_index:]))
+        step_start = index - args.before + 1
+        step_end = index + args.future
+        for i in range(step_start, step_end + 1):
+            if i <= index: # before part
+                in_arr = np.hstack((in_arr, inputs_df.iloc[i].to_numpy())) 
+            else: # future part
+                out_arr = np.hstack((out_arr, outputs_df.iloc[i].to_numpy()))
+        # print(f'in_arr: {in_arr}')
+        # print(f'out_arr: {out_arr}')
+
+        # print(f'in_arr shape: {in_arr.shape}')
+        # print(f'out_arr shape: {out_arr.shape}')
+        
+        inputs = np.vstack((inputs, in_arr))
+        outputs = np.vstack((outputs, out_arr))
     
-    if args.verbose:
-        #print(patterns.shape)
-        print(x.shape)
-        print(y.shape)
+    print(f'Inputs shape: {inputs.shape}')
+    print(f'Outputs shape: {outputs.shape}')
 
-    #x.tofile('inputs.csv')
-    in_columns = list()
-    for i in range(args.before, 0, -1):
-        for col in inputs_df.columns:
-            in_columns.append(f'{col}-{i}')
-    inputs_df = pd.DataFrame(x, columns=in_columns)
-    for col in inputs_df.columns:
-        inputs_df[col] = inputs_df[col].astype(np.int32)
+    inputs_df = pd.DataFrame(inputs)
     inputs_df.to_csv('inputs.csv', index=False)
-    #y.tofile('outputs.csv')
-    out_columns = list()
-    for i in range(args.future):
-        for col in outputs_df.columns:
-            out_columns.append(f'{col}-{i+1}')
-    outputs_df = pd.DataFrame(y, columns=out_columns)
-    for col in outputs_df.columns:
-        outputs_df[col] = outputs_df[col].astype(np.int32)
+
+    outputs_df = pd.DataFrame(outputs)
     outputs_df.to_csv('outputs.csv', index=False)
+
 
 if __name__ == '__main__':
     main()
