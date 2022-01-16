@@ -11,12 +11,14 @@ def main():
 
     VaccReg = pd.read_csv(dirname+"/data-slovakia/Vaccination/OpenData_Slovakia_Vaccination_Regions.csv", sep=';')
     VaccReg = VaccReg.groupby('Date').sum()
+    VaccReg = VaccReg.fillna(0)
 
     #print(DailyStats.set_index('Datum'))
     #print(VaccReg)
 
     joined = DailyStats.join(VaccReg, on='Datum')
-    joined.fillna(0)
+    joined = joined.fillna(0)
+
     joined['prirustkovy_pocet_nakazenych'] = joined['Dennych.PCR.prirastkov'] + joined['AgPosit']
     joined['all_doses'] = joined['first_dose'] + joined['second_dose'] + joined['third_dose']
 
@@ -38,6 +40,9 @@ def main():
                                 'third_vaccine_cumulative',
                                 'all_doses_cumulative',
                                 'first_dose', 'second_dose', 'third_dose', 'all_doses'], axis=1)
+
+    
+    combined = combined.fillna(0)
 
 
     new_combined_columns = [
@@ -66,6 +71,7 @@ def main():
     combined = combined.rename(columns=dict(zip(keys, values)))
 
     #print(list(combined.columns.values))
+    print(combined)
 
     combined.to_csv(dirname+"\combined.csv", index=False)
 
