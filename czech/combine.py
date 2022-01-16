@@ -12,6 +12,8 @@ def main():
         
     result_df = pd.merge(master_df, vacc_hosp_df, how='outer', on=['datum'])
 
+    result_df = result_df.drop(['id'])
+    
     for col in hosp_df.columns:
         if col in ['datum', 'id']:
             continue

@@ -1,7 +1,7 @@
-import numpy as np
-from numpy.core.fromnumeric import shape
-import pandas as pd
 from argparse import Namespace, ArgumentParser
+import json
+import numpy as np
+import pandas as pd
 
 def get_args() -> Namespace:
     parser = ArgumentParser()
@@ -13,10 +13,12 @@ def get_args() -> Namespace:
 
     return parser.parse_args()
 
-def normalize(series: pd.Series, start: int = 0, end: int = 1) -> pd.Series:
+def normalize(series: pd.Series) -> tuple[pd.Series, float, float]:
     series.dtypes
-    size = series.max() - series.min()
-    return ( series - series.min() ) / size
+    size = series.max() # - series.min()
+    q = 0 #series.min()
+    p = size
+    return ( series - q ) / p, p, q
 
 def main():
     args = get_args()
@@ -29,35 +31,49 @@ def main():
     df['currently_sick'] = df['kumulativni_pocet_nakazenych'] - (df['kumulativni_pocet_vylecenych'] + df['kumulativni_pocet_umrti'])
 
     input_columns = [
-        'prirustkovy_pocet_nakazenych',
+        #'prirustkovy_pocet_nakazenych',
         'kumulativni_pocet_nakazenych',
-        'prirustkovy_pocet_vylecenych',
-        'kumulativni_pocet_vylecenych',
-        'prirustkovy_pocet_umrti',
+        #'prirustkovy_pocet_vylecenych',
+        #'kumulativni_pocet_vylecenych',
+        #'prirustkovy_pocet_umrti',
         'kumulativni_pocet_umrti',
         'first_vaccine_cumulative',
         'second_vaccine_cumulative',
-        'currently_sick'
+        #'currently_sick'
     ]
     output_columns = [
-        'currently_sick',
+        #'currently_sick',
         'prirustkovy_pocet_nakazenych',
-        'prirustkovy_pocet_vylecenych',
-        'prirustkovy_pocet_umrti'
+        #'prirustkovy_pocet_vylecenych',
+        #'prirustkovy_pocet_umrti'
     ]
-    inputs_df = df[input_columns]
-    outputs_df = df[output_columns]
 
+    row_indices_to_remove = list()
+    for row_index, row in df.iterrows():
+        if row['kumulativni_pocet_nakazenych'] == 0:
+            row_indices_to_remove.append( row_index )
+    
+    df = df.drop(index=row_indices_to_remove)
+    print(f'Dropped { len(row_indices_to_remove) } rows.')
+    del row_indices_to_remove
+
+    d = dict()
     if args.normalize:
         print('Normalizing')
-        for curr_df in [inputs_df, outputs_df]:
-            # print(curr_df.columns)
-            # columns_to_scale = list(filter(lambda type: np.isscalar, curr_df.columns))
-            # print(columns_to_scale)
-            for col in curr_df.columns:
-                #print(col)
-                curr_df[col] = curr_df[col].astype(np.float64)
-                curr_df[col] = normalize(curr_df[col])
+        for col_name in df.columns:
+            col = df[col_name]
+            #print(col)
+            if df[col_name].dtype != np.int64:
+                continue
+            df[col_name] = df[col_name].astype(np.float64)
+            df[col_name], p, q = normalize(df[col_name])
+            d[col_name] = { 'p': p, 'q': q }
+        
+        # with open('normalization_params.json', 'w') as norm_param_file:
+        #     json.dump(d, indent=2, fp=norm_param_file, )
+
+    inputs_df = df[input_columns]
+    outputs_df = df[output_columns]
 
     inputs = np.empty(shape=(0, len(input_columns) * args.before))
     outputs = np.empty(shape=(0, len(output_columns) * args.future))
@@ -89,6 +105,14 @@ def main():
 
     outputs_df = pd.DataFrame(outputs)
     outputs_df.to_csv('outputs.csv', index=False)
+
+    params = list()
+    for _ in range(args.future):
+        for col_name in output_columns:
+            params.append( d[col_name] )
+
+    with open('outputs_norm_params.json', 'w') as norm_params_file:
+        json.dump(params, fp=norm_params_file, indent=2)
 
 
 if __name__ == '__main__':
