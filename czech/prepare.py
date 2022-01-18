@@ -31,21 +31,21 @@ def main():
     df['currently_sick'] = df['kumulativni_pocet_nakazenych'] - (df['kumulativni_pocet_vylecenych'] + df['kumulativni_pocet_umrti'])
 
     input_columns = [
-        #'prirustkovy_pocet_nakazenych',
+        'prirustkovy_pocet_nakazenych',
         'kumulativni_pocet_nakazenych',
-        #'prirustkovy_pocet_vylecenych',
-        #'kumulativni_pocet_vylecenych',
-        #'prirustkovy_pocet_umrti',
+        'prirustkovy_pocet_vylecenych',
+        'kumulativni_pocet_vylecenych',
+        'prirustkovy_pocet_umrti',
         'kumulativni_pocet_umrti',
         'first_vaccine_cumulative',
         'second_vaccine_cumulative',
-        #'currently_sick'
+        'currently_sick'
     ]
     output_columns = [
         #'currently_sick',
         'prirustkovy_pocet_nakazenych',
         #'prirustkovy_pocet_vylecenych',
-        #'prirustkovy_pocet_umrti'
+        'prirustkovy_pocet_umrti'
     ]
 
     row_indices_to_remove = list()
@@ -61,10 +61,11 @@ def main():
     if args.normalize:
         print('Normalizing')
         for col_name in df.columns:
-            col = df[col_name]
             #print(col)
             if df[col_name].dtype != np.int64:
                 continue
+
+            #print(f'Normalizing column: {col_name}')
             df[col_name] = df[col_name].astype(np.float64)
             df[col_name], p, q = normalize(df[col_name])
             d[col_name] = { 'p': p, 'q': q }
@@ -106,13 +107,14 @@ def main():
     outputs_df = pd.DataFrame(outputs)
     outputs_df.to_csv('outputs.csv', index=False)
 
-    params = list()
-    for _ in range(args.future):
-        for col_name in output_columns:
-            params.append( d[col_name] )
+    if args.normalize:
+        params = list()
+        for _ in range(args.future):
+            for col_name in output_columns:
+                params.append( d[col_name] )
 
-    with open('outputs_norm_params.json', 'w') as norm_params_file:
-        json.dump(params, fp=norm_params_file, indent=2)
+        with open('outputs_norm_params.json', 'w') as norm_params_file:
+            json.dump(params, fp=norm_params_file, indent=2)
 
 
 if __name__ == '__main__':
