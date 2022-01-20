@@ -10,18 +10,33 @@ def get_args() -> Namespace:
     parser.add_argument('-f', '--file', required=False)
     parser.add_argument('--before', type=int, default=10)
     parser.add_argument('--future', type=int, default=2)
-    parser.add_argument('-n', '--normalize', type=bool, default=False, nargs='?', const=True)
+    parser.add_argument('-n', '--normalize', type=bool, default=True, nargs='?', const=True)
 
     return parser.parse_args()
 
 def normalize(series: pd.Series, start: int = 0, end: int = 1) -> pd.Series:
     series.dtypes
     size = series.max() - series.min()
+    print("p: ", size, "q: ", series.min())
     return ( series - series.min() ) / size
+    kumulativni_pocet_nakazenych
+# p:  1207727.0 q:  1.0
+# prirustkovy_pocet_umrti
+# p:  14696.0 q:  0.0
+# kumulativni_pocet_umrti
+# p:  3685408.0 q:  0.0
+# first_vaccine_cumulative
+# p:  2651767.0 q:  0.0
+# second_vaccine_cumulative
+# p:  2349713.0 q:  0.0
+# prirustkovy_pocet_nakazenych
+# p:  15289.0 q:  0.0
+# prirustkovy_pocet_umrti
+# p:  14696.0 q:  0.0
 
 def main():
     args = get_args()
-    df = pd.read_csv('combined.csv')
+    df = pd.read_csv('new_combined.csv')
 
     # # add column 'currently_sick'
     # df['currently_sick'] = df['kumulativni_pocet_nakazenych'] - (df['kumulativni_pocet_vylecenych'] + df['kumulativni_pocet_umrti'])
@@ -55,6 +70,7 @@ def main():
             for col in curr_df.columns:
                 #print(col)
                 curr_df[col] = curr_df[col].astype(np.float64)
+                print(col)
                 curr_df[col] = normalize(curr_df[col])
 
     inputs = np.empty(shape=(0, len(input_columns) * args.before))
@@ -83,10 +99,10 @@ def main():
     print(f'Outputs shape: {outputs.shape}')
 
     inputs_df = pd.DataFrame(inputs)
-    inputs_df.to_csv('inputs.csv', index=False)
+    inputs_df.to_csv('new_inputs.csv', index=False)
 
     outputs_df = pd.DataFrame(outputs)
-    outputs_df.to_csv('outputs.csv', index=False)
+    outputs_df.to_csv('new_outputs.csv', index=False)
 
 
 if __name__ == '__main__':

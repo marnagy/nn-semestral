@@ -44,7 +44,7 @@ def main():
         "regressor__random_state": [seed],
         #tol=0.000001, n_iter_no_change=100 ??
     }
-    search = GridSearchCV(pipe, param_grid, n_jobs=1, verbose=1)
+    search = GridSearchCV(pipe, param_grid, n_jobs=1, verbose=2)
     search.fit(X_train, Y_train)
 
     with open('search.pickle', 'wb') as model_file:

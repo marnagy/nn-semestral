@@ -5,11 +5,11 @@ import os
 def main():
     dirname = os.path.dirname(__file__)
 
-    DailyStats = pd.read_csv(dirname+"/data-slovakia/DailyStats/OpenData_Slovakia_Covid_DailyStats.csv", sep=';')
+    DailyStats = pd.read_csv(dirname+"/covid19-data-main/DailyStats/OpenData_Slovakia_Covid_DailyStats.csv", sep=';')
     DailyStats['AgPosit'] = DailyStats['AgPosit'].fillna(0)
     DailyStats['AgTests'] = DailyStats['AgTests'].fillna(0)
 
-    VaccReg = pd.read_csv(dirname+"/data-slovakia/Vaccination/OpenData_Slovakia_Vaccination_Regions.csv", sep=';')
+    VaccReg = pd.read_csv(dirname+"/covid19-data-main/Vaccination/OpenData_Slovakia_Vaccination_Regions.csv", sep=';')
     VaccReg = VaccReg.groupby('Date').sum()
     VaccReg = VaccReg.fillna(0)
 
@@ -73,7 +73,7 @@ def main():
     #print(list(combined.columns.values))
     print(combined)
 
-    combined.to_csv(dirname+"\combined.csv", index=False)
+    combined.to_csv(dirname+"/new_combined.csv", index=False)
 
 
 

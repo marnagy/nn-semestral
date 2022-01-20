@@ -1,0 +1,69 @@
+
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+
+from sklearn.decomposition import PCA
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPRegressor
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import Pipeline
+
+import pickle
+import sys
+from sys import stderr
+import os
+
+import warnings
+
+
+def main():
+    dirname = os.path.dirname(__file__)
+    seed = 42
+    X = pd.read_csv(dirname+'/inputs_norm.csv')
+    Y = pd.read_csv(dirname+'/outputs_norm.csv')
+
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, train_size=.9, random_state=seed)
+    
+    with open(dirname+'/search_tmp2.pickle', 'rb') as model_file:
+        search = pickle.load(model_file)
+#{'pca__n_components': 25, 'regressor__activation': 'tanh', 'regressor__alpha': 0.1, 'regressor__hidden_layer_sizes': 500, 'regressor__learning_rate': 'adaptive', 'regressor__max_iter': 100, 'regressor__momentum': 0.1, 'regressor__random_state': 42, 'regressor__solver': 'adam'}
+#{'pca': PCA(n_components=25), 'regressor__activation': 'tanh', 'regressor__alpha': 0.1, 'regressor__hidden_layer_sizes': 500, 'regressor__learning_rate': 'adaptive', 'regressor__max_iter': 75, 'regressor__momentum': 0.05, 'regressor__random_state': 42, 'regressor__solver': 'adam'}
+#                             {'regressor__activation': 'tanh', 'regressor__alpha': 0.1, 'regressor__hidden_layer_sizes': 500, 'regressor__learning_rate': 'adaptive', 'regressor__max_iter': 60, 'regressor__momentum': 0.01, 'regressor__random_state': 42, 'regressor__solver': 'adam'}    
+  #                           {'regressor__activation': 'tanh', 'regressor__alpha': 0.1, 'regressor__hidden_layer_sizes': 500, 'regressor__learning_rate': 'adaptive', 'regressor__max_iter': 55, 'regressor__random_state': 42, 'regressor__solver': 'adam'}
+#                             {'regressor__activation': 'tanh', 'regressor__alpha': 0.09, 'regressor__hidden_layer_sizes': 600, 'regressor__learning_rate': 'adaptive', 'regressor__max_iter': 50, 'regressor__random_state': 42, 'regressor__solver': 'adam'}
+#                             {'regressor__activation': 'tanh', 'regressor__alpha': 0.09, 'regressor__hidden_layer_sizes': 600, 'regressor__learning_rate': 'adaptive', 'regressor__max_iter': 49, 'regressor__random_state': 42, 'regressor__solver': 'adam'}
+#                             {'regressor__activation': 'tanh', 'regressor__alpha': 0.09, 'regressor__hidden_layer_sizes': 600, 'regressor__learning_rate': 'adaptive', 'regressor__max_iter': 49, 'regressor__random_state': 42, 'regressor__solver': 'adam'}
+
+    print(search.best_params_)
+    #print(search.cv_results_)
+
+    
+    pca_X_test = search.best_estimator_['pca'].transform(X_test)
+    Y_pred = search.best_estimator_.predict(pca_X_test)
+
+    eps = 0.05 # allowed percent of error
+    accuracies = list()
+    for pred, (row_index, row_series) in zip(Y_pred, Y_test.iterrows()):
+        row = row_series.to_numpy()
+        err = 0
+        #print(f'Pred: {pred} Actual: {row}', file=stderr)
+        for i,(p, y) in enumerate(zip(pred, row)):
+            #print(p, y)
+            y = int(y)
+            # if y == 0:
+            #     if not (p <= 5):
+            #         err += abs(y - p)
+            if (y == 0 and not p <= 5) or not (y * (1 - eps) <= p <= y * (1 + eps)):
+                err += abs(y - p)
+        accuracies.append(err)
+    
+    print("PCA+MLP")
+    print(f'Average error with eps {eps}: {sum(accuracies) / len(accuracies) :.4f}', file=stderr)
+    print("RMSE:  ")
+    print(mean_squared_error(Y_test, Y_pred, squared=False))
+
+if __name__ == '__main__':
+    main()

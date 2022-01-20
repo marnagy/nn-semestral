@@ -1,0 +1,113 @@
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+
+from sklearn.decomposition import PCA
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPRegressor
+from sklearn.metrics import mean_squared_error
+
+import pickle
+from sys import stderr
+
+def main():
+    seed = 42
+    X = pd.read_csv('new_inputs.csv')
+    Y = pd.read_csv('new_outputs.csv')
+
+    X_test = X.iloc[-44:]
+    Y_test = Y.iloc[-44:]
+
+    X = X.iloc[:-44]
+    Y = Y.iloc[:-44]
+    print(X_test.shape, Y_test.shape)
+
+    #{'pca__n_components': 25, 'regressor__activation': 'tanh', 'regressor__alpha': 0.1, 'regressor__hidden_layer_sizes': 500, 'regressor__learning_rate': 'adaptive', 'regressor__max_iter': 100, 'regressor__momentum': 0.1, 'regressor__random_state': 42, 'regressor__solver': 'adam'}
+
+
+    X_train, _, Y_train, _ = train_test_split(X, Y, train_size=0.95, random_state=seed)
+    pca = PCA(n_components=25)
+    pca_X_train = pca.fit_transform(X_train)
+    pca_X_test = pca.transform(X_test)
+
+#60-0.03957094124639943     42-0.04029050204022203    25-0.03888817451936788        16-0.03954949206088276
+
+    # print(pca.explained_variance_ratio_)
+    # print(pca.n_features_)
+    # return
+#{'regressor__activation': 'tanh', 'regressor__alpha': 0.09, 'regressor__hidden_layer_sizes': 600, 'regressor__learning_rate': 'adaptive', 'regressor__max_iter': 50, 'regressor__random_state': 42, 'regressor__solver': 'adam'}
+#Average error with eps 0.05: 1.0276
+#RMSE:
+#0.028374319083292472      dvaojka bola lepsia - 0.02772188
+
+#dvojka
+#{'pca': PCA(n_components=25), 'regressor__activation': 'tanh', 'regressor__alpha': 0.1, 'regressor__hidden_layer_sizes': 500, 'regressor__learning_rate': 'adaptive', 'regressor__max_iter': 75, 'regressor__momentum': 0.05, 'regressor__random_state': 42, 'regressor__solver': 'adam'}
+# Average error with eps 0.05: 1.0274
+# RMSE:
+# 0.027721887612384637
+
+
+
+    model = MLPRegressor(hidden_layer_sizes=(600), activation='tanh',
+        solver='adam', learning_rate='adaptive', max_iter=49, alpha=0.09,
+        random_state=seed,
+        verbose=True)
+    model.fit(pca_X_train, Y_train)
+
+    Y_pred = model.predict(pca_X_test)
+
+    eps = 0.05 # allowed percent of error
+    accuracies = list()
+    for pred, (row_index, row_series) in zip(Y_pred, Y_test.iterrows()):
+        row = row_series.to_numpy()
+        err = 0
+        #print(f'Pred: {pred} Actual: {row}', file=stderr)
+        for i,(p, y) in enumerate(zip(pred, row)):
+            #print(p, y)
+            y = int(y)
+            # if y == 0:
+            #     if not (p <= 5):
+            #         err += abs(y - p)
+            if (y == 0 and not p <= 5) or not (y * (1 - eps) <= p <= y * (1 + eps)):
+                err += abs(y - p)
+        accuracies.append(err)
+    
+    print("PCA+MLP")
+    print(f'Average error with eps {eps}: {sum(accuracies) / len(accuracies) :.4f}', file=stderr)
+    print("RMSE:  ")
+    print(mean_squared_error(Y_test, Y_pred, squared=False))
+    
+    Y_test, Y_pred = Y_test * [17249,17398,17249,17398], Y_pred * [17249,17398,17249,17398]
+    #Y_pred = Y_pred.as_matrix()
+
+    print(Y_test, Y_pred)
+    print(Y_test - Y_pred)
+
+    Yp = pd.DataFrame(data=Y_pred, index=None, columns=None)
+    Yp.to_csv("Yp.csv", index=False)
+    Yt = pd.DataFrame(data=Y_test, index=None, columns=None)
+    Yt.to_csv("Yt.csv", index=False)
+
+    print(Y_test.iloc[43,:], Y_pred[43,:])
+    print(Y_test.iloc[36,:], Y_pred[36,:])
+    print(Y_test.iloc[16,:], Y_pred[16,:])
+    
+    print("un-normalized")
+    print(mean_squared_error(Y_test, Y_pred, squared=False))
+    # prirustkovy_pocet_nakazenych
+# p:  15289.0 q:  0.0
+# prirustkovy_pocet_umrti
+# p:  14696.0 q:  0.0
+# * [15289,14696,15289,14696]
+
+#na novych
+# prirustkovy_pocet_nakazenych
+# p:  17249.0 q:  0.0
+# prirustkovy_pocet_umrti
+# p:  17398.0 q:  0.0
+
+#{'pca__n_components': 25, 'regressor__activation': 'tanh', 'regressor__alpha': 0.09, 'regressor__hidden_layer_sizes': 600, 'regressor__learning_rate': 'adaptive', 'regressor__max_iter': 49, 'regressor__random_state': 42, 'regressor__solver': 'adam'}
+
+
+if __name__ == '__main__':
+    main()
